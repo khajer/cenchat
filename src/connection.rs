@@ -4,6 +4,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
+use tracing::{error, info};
 
 use crate::protocol::{self, Command};
 use crate::state::Shared;
@@ -12,11 +13,11 @@ pub async fn handle_connection(stream: TcpStream, addr: SocketAddr, shared: Shar
     let ws_stream = match tokio_tungstenite::accept_async(stream).await {
         Ok(ws) => ws,
         Err(err) => {
-            eprintln!("[{addr}] websocket handshake failed: {err}");
+            error!("[{addr}] websocket handshake failed: {err}");
             return;
         }
     };
-    println!("[{addr}] connected");
+    info!("[{addr}] connected");
 
     let (mut write, mut read) = ws_stream.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
@@ -36,7 +37,7 @@ pub async fn handle_connection(stream: TcpStream, addr: SocketAddr, shared: Shar
         let msg = match msg {
             Ok(msg) => msg,
             Err(err) => {
-                eprintln!("[{addr}] error reading message: {err}");
+                error!("[{addr}] error reading message: {err}");
                 break;
             }
         };
@@ -56,7 +57,7 @@ pub async fn handle_connection(stream: TcpStream, addr: SocketAddr, shared: Shar
 
     drop(tx);
     let _ = writer_task.await;
-    println!("[{addr}] disconnected");
+    info!("[{addr}] disconnected");
 }
 
 fn dispatch(
